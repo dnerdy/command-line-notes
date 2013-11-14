@@ -1,0 +1,151 @@
+#!/bin/bash -e
+
+# The MIT License (MIT)
+
+# Copyright (c) 2013 Mark Sandstrom
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+### Installation
+
+# Download this script and place somewhere it in your PATH. Run. That's it.
+
+### Usage
+#
+# Take notes using the default file (notes.txt):
+#
+#   $ notes
+#
+# Take notes using another file
+#
+#   $ notes log.txt
+#
+# You may find it convenient to create an alias for files you frequently use:
+#
+#   $ alias log="notes log.txt"
+
+### Configuration
+
+ROOT=~/.notes
+NOTES="$ROOT"/notes
+DEFAULT=notes.txt
+PRE="$ROOT"/pre
+
+###
+
+NAME=$0
+
+function log {
+    echo "$@" 1>&2;
+}
+
+function usage {
+    echo usage: $NAME [name];
+}
+
+function create_pre {
+    cat > "$PRE" <<EOF
+normal gg
+
+if line("$") > 1
+normal O========================================
+else
+normal i========================================
+endif
+
+r !date
+normal o========================================
+normal o
+normal o
+normal O
+EOF
+}
+
+function install {
+    mkdir -p $(dirname "$NOTES")
+    create_pre
+    if [ ! -d "$NOTES" ]; then
+        git init "$NOTES"
+        cd "$NOTES"
+        git commit -am "Initial Commit" --allow-empty
+    fi
+}
+
+function uninstall {
+    rm -rf "$NOTES"
+}
+
+function open {
+    if [ -z $1 ]; then
+        FILE=$DEFAULT
+    else
+        FILE=$1
+    fi
+
+    FILE="$NOTES/$FILE"
+    cd "$NOTES"
+    vim -c "source $PRE" "$FILE"
+
+    if [ -e "$FILE" ]; then
+        git add "$FILE"
+        git commit -am "Update $(basename $FILE)"
+    fi
+}
+
+### Main
+
+while :
+do
+    case "$1" in
+        -h)
+            usage
+            exit 0
+            ;;
+        --cleaninstall)
+            uninstall
+            install
+            shift
+            ;;
+        --reinstall)
+            install
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Install if necessary
+if [ ! -d $ROOT ]; then
+    install
+fi
+
+# Check command line arguments
+if [ $# -gt 1 ]; then
+    usage
+    exit 1
+fi
+
+# Run
+open "$1"
